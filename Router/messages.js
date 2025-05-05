@@ -60,7 +60,8 @@ const complainerModel = require('../models/complainer.model');
           }
         } else {
           // If staff, find chat room assigned to them
-          chatRooms = await chatRoomModel.find ({}).populate('complainer user').populate({
+          const query= req.user.role==="member"? {user:req.user.id} : {}
+          chatRooms = await chatRoomModel.find (query).populate('complainer user').populate({
             path: 'messages.sender',
             model: 'User',
           });
@@ -181,6 +182,38 @@ chatRooms = populatedChatRooms;
 
   res.json(updated);
   })
+
+
+
+
+
+  router.post('/assignChat', authMiddleware, async (req, res) => {
+    // Only allow if user is an admin
+    if (req.user.role !== 'admin') return res.status(403).send('Access denied');
+  
+    const { chatRoomId, userId } = req.body;
+  
+    try {
+      
+      const userMember = await userModel.findById(userId);
+      if (!userMember) return res.status(404).send('Staff not found');
+  
+     
+      const chatRoom = await chatRoomModel.findById(chatRoomId);
+      if (!chatRoom) return res.status(404).send('Chat room not found');
+  
+      
+      if (!chatRoom.user.includes(userId)) {
+        chatRoom.user.push(userId);
+        await chatRoom.save();
+      }
+  
+      res.status(200).send('Staff assigned successfully');
+    } catch (err) {
+      console.error(err);
+      res.status(500).send('Error assigning staff');
+    }
+  });
 
 
 
